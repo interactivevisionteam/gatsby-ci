@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND noninteractive
 WORKDIR /var/app
 
 RUN apt-get update \
-    && apt-get install -y curl supervisor \
+    && apt-get install -y curl openssh-client \
     && curl -sL "https://deb.nodesource.com/setup_12.x" | bash - \
     && apt-get install -y nodejs \
     && curl -sL "https://dl.yarnpkg.com/debian/pubkey.gpg" | apt-key add - \
@@ -22,3 +22,5 @@ RUN command -v node
 RUN command -v npm
 RUN command -v npx
 RUN command -v gatsby
+
+RUN mkdir ~/.ssh && touch ~/.ssh/config
