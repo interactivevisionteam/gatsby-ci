@@ -6,7 +6,7 @@ ENV DEBIAN_FRONTEND noninteractive
 WORKDIR /var/app
 
 RUN apt-get update \
-    && apt-get install -y curl openssh-client \
+    && apt-get install -y curl openssh-client rsync \
     && curl -sL "https://deb.nodesource.com/setup_14.x" | bash - \
     && apt-get install -y nodejs \
     && curl -sL "https://dl.yarnpkg.com/debian/pubkey.gpg" | apt-key add - \
