@@ -7,6 +7,7 @@ deploy your Gatsby website using CI/CD pipelines. It contains:
 - nodejs
 - yarn
 - gatsby (binary)
+- lftp
 
 ## Example GitLab pipeline configuration
 
@@ -31,16 +32,20 @@ stages:
 
 cache:
     paths:
-        - public/
+        - node_modules
 
 build:
     stage: build
+    artifacts:
+        expire_in: 1h
+        paths:
+            - public
     only:
         - master
-    tags:
-        - some-custom-tag
+    before_script:
+        - export NODE_ENV="production"
     script:
-        - npm install
+        - yarn install
         - gatsby build
 
 deploy:
@@ -49,16 +54,17 @@ deploy:
         - build
     only:
         - master
-    tags:
-        - some-custom-tag
-    script:
-        - mkdir ~/.ssh
-        - echo "$SSH_KNOWN_HOSTS" >> ~/.ssh/known_hosts
-        - chmod 644 ~/.ssh/known_hosts
+    before_script:
         - eval $(ssh-agent -s)
-        - ssh-add <(echo "$DEPLOY_PRIVATE_KEY")
-        - ssh user@remote-host -p 22 "mkdir /home/user/domains/domain.example/new"
-        - scp -P 22 -r public/* user@remote-host:/home/user/domains/domain.example/new
-        - ssh user@remote-host -p 22 "rm -rf /home/user/domains/domain.example/current"
-        - ssh user@remote-host -p 22 "mv /home/user/domains/domain.example/new /home/user/domains/domain.example/current"
+        - echo "$REMOTE_SERVER_PRIVATE_KEY" | base64 -d | ssh-add -
+        - mkdir -p ~/.ssh
+        - chmod 700 ~/.ssh
+        - echo "$REMOTE_SERVER_KNOWN_HOST" | base64 -d >> ~/.ssh/known_hosts
+        - chmod 644 ~/.ssh/known_hosts
+    script:
+        - ssh user@remotehost -p 22 "[[ -d ${REMOTE_ROOT_PATH}/new ]] && rm -rf ${REMOTE_ROOT_PATH}/new || echo New directory does not exist. Skipping..."
+        - ssh user@remotehost -p 22 "mkdir ${REMOTE_ROOT_PATH}/new"
+        - rsync -avzr -e "ssh -p 22" public/ user@remotehost:"${REMOTE_ROOT_PATH}/new/"
+        - ssh user@remotehost -p 22 "[[ -d ${REMOTE_ROOT_PATH}/current ]] && rm -rf ${REMOTE_ROOT_PATH}/current || echo Current directory does not exist. Skipping..."
+        - ssh user@remotehost -p 22 "mv ${REMOTE_ROOT_PATH}/new ${REMOTE_ROOT_PATH}/current"
 ```
