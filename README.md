@@ -11,6 +11,8 @@ deploy your Gatsby website using CI/CD pipelines. It contains:
 
 ## Example GitLab pipeline configuration
 
+### Using SSH and `rsync` command
+
 Here's a basic example of configuring a pipeline to build project using Gatsby's binary, and then to deploy a compiled
 version to the remote host using SCP. This workflow first creates a `new` directory on the remote host, and uploads
 compiled version to it. This prevents issues with live version if anything would fail. Once everything is uploaded,
@@ -67,4 +69,47 @@ deploy:
         - rsync -avzr -e "ssh -p 22" public/ user@remotehost:"${REMOTE_ROOT_PATH}/new/"
         - ssh user@remotehost -p 22 "[[ -d ${REMOTE_ROOT_PATH}/current ]] && rm -rf ${REMOTE_ROOT_PATH}/current || echo Current directory does not exist. Skipping..."
         - ssh user@remotehost -p 22 "mv ${REMOTE_ROOT_PATH}/new ${REMOTE_ROOT_PATH}/current"
+```
+
+### Using FTP and `lftp mirror` command
+
+When your hosting doesn't provide an SSH access, you might want to use an FTP protocol to transfer your built version
+to your server, using `lftp` client, and it's `mirror` command to synchronize your new version with remote server.
+It will update the files, and will remove any files that no longer exists in the source directory.
+
+**.gitlab-ci.yml**
+
+```yaml
+image: intervi/gatsby-ci:latest
+
+stages:
+    - build
+    - deploy
+
+cache:
+    paths:
+        - node_modules
+
+build:
+    stage: build
+    artifacts:
+        expire_in: 1h
+        paths:
+            - public
+    only:
+        - master
+    before_script:
+        - export NODE_ENV="production"
+    script:
+        - yarn install
+        - gatsby build
+
+deploy:
+    stage: deploy
+    dependencies:
+        - build
+    only:
+        - master
+    script:
+        - lftp -e "set ftp:ssl-allow no; mirror -R -e --parallel=10 public/ /public_html; quit" -u $FTP_USER,$FTP_PASSWD $FTP_IP
 ```
